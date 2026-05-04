@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'dart:math';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -180,7 +181,10 @@ class _HomeScreenState extends State<HomeScreen> {
       request.headers['X-Vault-Pin'] = peerPin!;
       request.files.add(await http.MultipartFile.fromPath('file', file.path));
 
-      var response = await request.send();
+      var response = await request.send().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException('Connection timed out.'),
+      );
       if (mounted) {
         if (response.statusCode == 200 || response.statusCode == 303 || response.statusCode == 302) {
            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('File sent successfully!')));
@@ -189,7 +193,13 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        String errMsg = e.toString();
+        if (e is TimeoutException || errMsg.contains('timed out') || errMsg.contains('SocketException')) {
+           errMsg = 'Connection failed. Ensure both devices are on the exact same Wi-Fi and the vault is active.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errMsg)));
+      }
     }
   }
 

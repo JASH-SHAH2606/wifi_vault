@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Upload, ShieldCheck, X, File as FileIcon, Image as ImageIcon, Film, Music, FileText, Archive, Folder, Home, ChevronRight } from 'lucide-react';
+import { Download, Upload, ShieldCheck, X, File as FileIcon, Image as ImageIcon, Film, Music, FileText, Archive, Folder, Home, ChevronRight, Clipboard as ClipboardIcon, Copy, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type VaultFile = {
@@ -19,6 +19,48 @@ function App() {
   const [previewFile, setPreviewFile] = useState<VaultFile | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [currentPath, setCurrentPath] = useState('');
+  
+  const [activeTab, setActiveTab] = useState<'files' | 'clipboard'>('files');
+  const [deviceClipboard, setDeviceClipboard] = useState('');
+  const [sendClipboardText, setSendClipboardText] = useState('');
+  const [isSendingClipboard, setIsSendingClipboard] = useState(false);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (isAuthenticated && activeTab === 'clipboard') {
+      const fetchClipboard = async () => {
+        try {
+          const res = await fetch('/api/clipboard');
+          if (res.ok) {
+            const data = await res.json();
+            setDeviceClipboard(data.text || '');
+          }
+        } catch (err) {
+          console.error('Failed to fetch clipboard', err);
+        }
+      };
+      
+      fetchClipboard(); // Initial fetch
+      interval = setInterval(fetchClipboard, 3000); // Poll every 3 seconds
+    }
+    return () => clearInterval(interval);
+  }, [isAuthenticated, activeTab]);
+
+  const handleSendClipboard = async () => {
+    if (!sendClipboardText) return;
+    setIsSendingClipboard(true);
+    try {
+      await fetch('/api/clipboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: sendClipboardText })
+      });
+      setSendClipboardText('');
+    } catch (err) {
+      console.error('Failed to send clipboard', err);
+    }
+    setIsSendingClipboard(false);
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -168,21 +210,67 @@ function App() {
   return (
     <div className="container">
       <header>
-        <h1>WiFi Vault</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <h1>WiFi Vault</h1>
+          <div className="tabs">
+            <button className={`tab ${activeTab === 'files' ? 'active' : ''}`} onClick={() => setActiveTab('files')}>
+              <Folder size={18} /> Files
+            </button>
+            <button className={`tab ${activeTab === 'clipboard' ? 'active' : ''}`} onClick={() => setActiveTab('clipboard')}>
+              <ClipboardIcon size={18} /> Clipboard
+            </button>
+          </div>
+        </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <label className="btn btn-secondary">
+          {activeTab === 'files' && (
+            <>
+              <label className="btn btn-secondary">
             <Upload size={18} />
             Upload to Vault
             <input type="file" multiple onChange={handleUpload} style={{ display: 'none' }} />
           </label>
-          <button className="btn btn-secondary" onClick={downloadAll}>
-            <Download size={18} />
-            Download All (ZIP)
-          </button>
+              <button className="btn btn-secondary" onClick={downloadAll}>
+                <Download size={18} />
+                Download All (ZIP)
+              </button>
+            </>
+          )}
         </div>
       </header>
 
-      {/* Breadcrumbs Navigation */}
+      {activeTab === 'clipboard' && (
+        <div className="clipboard-container">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-panel clipboard-card">
+            <h2><ClipboardIcon size={24} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--accent)' }} /> Phone's Clipboard</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>This text is currently copied on your phone.</p>
+            <div className="clipboard-read-area">
+              {deviceClipboard ? deviceClipboard : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Clipboard is empty.</span>}
+            </div>
+            <button className="btn" onClick={() => navigator.clipboard.writeText(deviceClipboard)} disabled={!deviceClipboard} style={{ marginTop: '16px' }}>
+              <Copy size={18} /> Copy to PC
+            </button>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-panel clipboard-card">
+            <h2><Send size={24} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--accent)' }} /> Send to Phone</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>Type or paste text here to instantly copy it to your phone.</p>
+            <textarea 
+              className="clipboard-write-area" 
+              placeholder="Enter text..." 
+              value={sendClipboardText}
+              onChange={(e) => setSendClipboardText(e.target.value)}
+              rows={5}
+            />
+            <button className="btn" onClick={handleSendClipboard} disabled={!sendClipboardText || isSendingClipboard} style={{ marginTop: '16px' }}>
+              {isSendingClipboard ? 'Sending...' : 'Send to Phone'}
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {activeTab === 'files' && (
+        <>
+          {/* Breadcrumbs Navigation */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', padding: '12px', background: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border)' }}>
         <button 
           onClick={() => setCurrentPath('')} 
@@ -316,6 +404,8 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      </>
+      )}
 
       {isUploading && (
         <div className="overlay-loader">

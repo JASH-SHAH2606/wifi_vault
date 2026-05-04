@@ -17,8 +17,30 @@ class NetworkUtils {
           includeLinkLocal: false,
         );
         
-        // Prioritize finding a standard private local network IP (typical for hotspots)
-        for (var interface in interfaces) {
+        // Filter out known non-local interfaces (cellular, dummy, vpn)
+        final validInterfaces = interfaces.where((i) {
+          final name = i.name.toLowerCase();
+          return !name.startsWith('rmnet') && 
+                 !name.startsWith('dummy') && 
+                 !name.startsWith('lo') && 
+                 !name.startsWith('tun') && 
+                 !name.startsWith('veth');
+        }).toList();
+
+        // 1. Prioritize Wi-Fi or Hotspot names
+        for (var interface in validInterfaces) {
+          final name = interface.name.toLowerCase();
+          if (name.startsWith('wlan') || name.startsWith('ap') || name.startsWith('swlan')) {
+            for (var addr in interface.addresses) {
+              if (addr.address != '127.0.0.1') {
+                return addr.address;
+              }
+            }
+          }
+        }
+
+        // 2. Prioritize finding a standard private local network IP
+        for (var interface in validInterfaces) {
           for (var addr in interface.addresses) {
             if (addr.address.startsWith('192.168.') || 
                 addr.address.startsWith('10.') || 
@@ -28,8 +50,8 @@ class NetworkUtils {
           }
         }
         
-        // Fallback to any non-localhost IP if standard ones aren't found
-        for (var interface in interfaces) {
+        // 3. Fallback to any non-localhost IP
+        for (var interface in validInterfaces) {
           for (var addr in interface.addresses) {
              if (addr.address != '127.0.0.1') {
                return addr.address;

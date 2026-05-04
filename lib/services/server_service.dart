@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:convert';
 import 'web_ui.dart';
 import 'package:archive/archive_io.dart';
+import 'package:flutter/services.dart';
 
 class ServerService {
   HttpServer? _server;
@@ -102,6 +103,27 @@ class ServerService {
         final filePathParam = request.uri.queryParameters['path'] ?? 'unknown';
         _log("Streaming/Viewing: $filePathParam", request);
         await _serveFile(request, response, inline: true);
+      } else if (path == '/api/clipboard') {
+        if (request.method == 'GET') {
+          _log("Reading clipboard", request);
+          final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+          response.headers.contentType = ContentType.json;
+          response.statusCode = HttpStatus.ok;
+          response.write(jsonEncode({"text": clipboardData?.text ?? ""}));
+          await response.close();
+        } else if (request.method == 'POST') {
+          _log("Writing to clipboard", request);
+          String body = await utf8.decoder.bind(request).join();
+          Map<String, dynamic> data = jsonDecode(body);
+          String newText = data['text'] ?? '';
+          await Clipboard.setData(ClipboardData(text: newText));
+          response.headers.contentType = ContentType.json;
+          response.statusCode = HttpStatus.ok;
+          response.write(jsonEncode({"success": true}));
+          await response.close();
+        } else {
+          _sendNotFound(response);
+        }
       } else {
         _sendNotFound(response);
       }
