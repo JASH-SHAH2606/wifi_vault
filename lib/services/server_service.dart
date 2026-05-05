@@ -9,22 +9,33 @@ import 'package:flutter/foundation.dart';
 import 'scanner_service.dart';
 import 'chat_service.dart';
 import 'speedtest_service.dart';
-import 'wol_service.dart';
+
 import 'stats_service.dart';
 import 'share_service.dart';
 
-class ServerService {
+class ServerService extends ChangeNotifier {
+  static final ServerService _instance = ServerService._internal();
+  factory ServerService() => _instance;
+  ServerService._internal();
+
   HttpServer? _server;
-  final String sharedDirectoryPath;
-  final String pin;
-  final Function(String) onLog;
+  late String sharedDirectoryPath;
+  late String pin;
+  Function(String)? onLog;
   int port = 8080;
   final ChatService _chatService = ChatService();
   final StatsService _stats = StatsService();
   final ShareService _shareService = ShareService();
   bool _scanInProgress = false;
 
-  ServerService(this.sharedDirectoryPath, this.pin, {required this.onLog});
+  ChatService get chatService => _chatService;
+  StatsService get statsService => _stats;
+
+  void init(String path, String p, {required Function(String) logCb}) {
+    sharedDirectoryPath = path;
+    pin = p;
+    onLog = logCb;
+  }
 
   Future<void> startServer() async {
     try {
@@ -34,6 +45,7 @@ class ServerService {
       _server!.listen((HttpRequest request) {
         _handleRequest(request);
       });
+      notifyListeners();
     } catch (e) {
       debugPrint("Error starting server: $e");
       rethrow;
@@ -47,6 +59,7 @@ class ServerService {
     _server?.close(force: true);
     _server = null;
     debugPrint("Server stopped");
+    notifyListeners();
   }
 
 
@@ -60,7 +73,7 @@ class ServerService {
 
   void _log(String message, HttpRequest request) {
     final ip = request.connectionInfo?.remoteAddress.address ?? 'Unknown';
-    onLog("[$ip] $message");
+    onLog?.call("[$ip] $message");
   }
 
     void _handleRequest(HttpRequest request) async {
@@ -102,6 +115,13 @@ class ServerService {
           response.write('{"error": "Invalid PIN"}');
         }
         await response.close();
+        return;
+      }
+
+      // ── WebSocket Chat (no PIN required — open to all LAN peers) ──────────
+      if (path == '/ws/chat') {
+        _log("Chat client connected (WS)", request);
+        await _chatService.handleUpgrade(request);
         return;
       }
 
@@ -186,10 +206,8 @@ class ServerService {
         }
         await response.close();
 
-      // ── WebSocket Chat ───────────────────────────────────────────────────
-      } else if (path == '/ws/chat') {
-        _log("Chat client connected (WS)", request);
-        await _chatService.handleUpgrade(request);
+      // ── WebSocket Chat (handled above auth gate) ─────────────────────────
+      // Already handled above. Fall through to not-found for any unmatched paths.
 
       // ── Speed Test ───────────────────────────────────────────────────────
       } else if (path == '/api/speedtest/ping') {
@@ -204,18 +222,6 @@ class ServerService {
         final result = await SpeedTestService.handleUpload(request);
         _stats.recordBytesIn(result['receivedBytes'] as int);
         response.headers.contentType = ContentType.json;
-        response.write(jsonEncode(result));
-        await response.close();
-
-      // ── Wake-on-LAN ──────────────────────────────────────────────────────
-      } else if (path == '/api/wol' && request.method == 'POST') {
-        final body = await utf8.decoder.bind(request).join();
-        final data = jsonDecode(body) as Map<String, dynamic>;
-        final mac = data['mac'] as String? ?? '';
-        _log("WoL: sending magic packet to $mac", request);
-        final result = await WolService.sendMagicPacket(mac);
-        response.headers.contentType = ContentType.json;
-        response.statusCode = (result['success'] as bool) ? HttpStatus.ok : HttpStatus.badRequest;
         response.write(jsonEncode(result));
         await response.close();
 
@@ -274,7 +280,11 @@ class ServerService {
           response.headers.contentLength = share.fileSize;
           response.headers.add('Accept-Ranges', 'bytes');
           try {
-            await file.openRead().pipe(response);
+            await for (final chunk in file.openRead()) {
+              response.add(chunk);
+              _stats.recordBytesOut(chunk.length);
+            }
+            await response.close();
           } catch (_) { await response.close(); }
         } else {
           // Serve the share info page (HTML)
@@ -322,7 +332,10 @@ Future<void> _handleUpload(HttpRequest request, HttpResponse response) async {
                final savePath = '$sharedDirectoryPath${Platform.pathSeparator}$filename';
                final file = File(savePath);
                final sink = file.openWrite();
-               await part.cast<List<int>>().pipe(sink);
+               await for (final chunk in part.cast<List<int>>()) {
+                 sink.add(chunk);
+                 _stats.recordBytesIn(chunk.length);
+               }
                await sink.close();
             }
           }
@@ -376,7 +389,11 @@ Future<void> _handleUpload(HttpRequest request, HttpResponse response) async {
       response.headers.contentType = ContentType('application', 'zip');
       response.headers.add('content-disposition', 'attachment; filename="$zipName"');
       
-      await zipFile.openRead().pipe(response);
+      for (final chunk in await zipFile.openRead().toList()) {
+        response.add(chunk);
+        _stats.recordBytesOut(chunk.length);
+      }
+      await response.close();
       
       if (await zipFile.exists()) {
         await zipFile.delete();
@@ -437,7 +454,11 @@ Future<void> _handleUpload(HttpRequest request, HttpResponse response) async {
       response.headers.contentType = ContentType('application', 'zip');
       response.headers.add('content-disposition', 'attachment; filename="$zipName"');
       
-      await zipFile.openRead().pipe(response);
+      for (final chunk in await zipFile.openRead().toList()) {
+        response.add(chunk);
+        _stats.recordBytesOut(chunk.length);
+      }
+      await response.close();
       
       if (await zipFile.exists()) {
         await zipFile.delete();
@@ -564,16 +585,23 @@ Future<void> _handleUpload(HttpRequest request, HttpResponse response) async {
       response.headers.contentLength = (end - start) + 1;
 
       try {
-        await file.openRead(start, end + 1).pipe(response);
+        await for (final chunk in file.openRead(start, end + 1)) {
+          response.add(chunk);
+          _stats.recordBytesOut(chunk.length);
+        }
       } catch (e) {
         debugPrint("Error serving partial file: $e");
-        await response.close();
       }
+      await response.close();
     } else {
       response.headers.add(HttpHeaders.acceptRangesHeader, 'bytes');
       response.headers.contentLength = fileLength;
       try {
-        await file.openRead().pipe(response);
+        await for (final chunk in file.openRead()) {
+          response.add(chunk);
+          _stats.recordBytesOut(chunk.length);
+        }
+        await response.close();
       } catch (e) {
         debugPrint("Error serving file: $e");
         response.statusCode = HttpStatus.internalServerError;
@@ -612,7 +640,10 @@ Future<void> _handleUpload(HttpRequest request, HttpResponse response) async {
               '${Directory.systemTemp.path}${Platform.pathSeparator}wv_share_${DateTime.now().millisecondsSinceEpoch}_$fileName';
           final file = File(tempPath);
           final sink = file.openWrite();
-          await part.cast<List<int>>().pipe(sink);
+          await for (final chunk in part.cast<List<int>>()) {
+            sink.add(chunk);
+            _stats.recordBytesIn(chunk.length);
+          }
           await sink.close();
 
           final size = await file.length();
