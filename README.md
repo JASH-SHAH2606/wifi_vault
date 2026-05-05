@@ -1,7 +1,5 @@
 # 🛡️ Nexora
 
-<img src="https://via.placeholder.com/800x400.png?text=Nexora+Banner" width="600" height="300" alt="Nexora Banner Placeholder">
-
 Nexora is a powerful, local-network utility application built with Flutter. It provides a comprehensive suite of tools for managing, analyzing, and communicating over your Local Area Network (LAN) securely and efficiently without requiring an active internet connection.
 
 ## ✨ Features
@@ -112,3 +110,10 @@ Nexora uses a decentralized, peer-to-peer (P2P) architecture designed for Local 
 *   **Aditya Ajay** - [Role/Contribution]
 *   **Rishu Kumar** - [Role/Contribution]
 *   **Ansh Patel** - [Role/Contribution]
+
+---
+
+<div align="center">
+  <h2>🙏 Thank You!</h2>
+  <p>Thank you for checking out Nexora! We hope you enjoy using it.</p>
+</div>
