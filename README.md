@@ -104,12 +104,9 @@ Nexora uses a decentralized, peer-to-peer (P2P) architecture designed for Local 
 
 ## 👥 Team
 
-*   **Jash Shah** - [Role/Contribution]
-*   **Ved Gupta** - [Role/Contribution]
-*   **Mohan Kumar** - [Role/Contribution]
-*   **Aditya Ajay** - [Role/Contribution]
-*   **Rishu Kumar** - [Role/Contribution]
-*   **Ansh Patel** - [Role/Contribution]
+*   **Rishu Kumar & Mohan Kumar** - Application Layer (HTTP/1.1), Transport Layer (TCP, sockets, 3-way handshake), Client-Server model, REST architecture, IP addressing, port numbers
+*   **Jash Shah & Ansh Patel** - Network Layer (IP, ICMP, subnetting, CIDR, TTL), ARP basics, ping/RTT, TCP throughput measurement, network monitoring, 802.11 WiFi
+*   **Aditya Ajay & Ved Gupta** - WebSocket (Application + Transport Layer), Full-duplex vs Half-duplex, UDP vs TCP trade-offs, multicast vs broadcast vs unicast, mDNS, zero-config networking, subnet broadcast addressing
 
 ---
 
