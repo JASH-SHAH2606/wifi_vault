@@ -1,16 +1,16 @@
-# 🛡️ Wifi Vault
+# 🛡️ Nexora
 
-<img src="https://via.placeholder.com/800x400.png?text=App+Screenshot+Here" width="600" height="300" alt="App Screenshot Placeholder">
+<img src="https://via.placeholder.com/800x400.png?text=Nexora+Banner" width="600" height="300" alt="Nexora Banner Placeholder">
 
-Wifi Vault is a powerful, local-network utility application built with Flutter. It provides a comprehensive suite of tools for managing, analyzing, and communicating over your Local Area Network (LAN) securely and efficiently without requiring an active internet connection.
+Nexora is a powerful, local-network utility application built with Flutter. It provides a comprehensive suite of tools for managing, analyzing, and communicating over your Local Area Network (LAN) securely and efficiently without requiring an active internet connection.
 
 ## ✨ Features
 
 *   **📂 Local File Server & Web UI:** Easily host files on your device and access them from any other device on the same network via a sleek Web UI.
 *   **📡 LAN Scanner:** Discover and list all active devices connected to your local network instantly.
 *   **⚡ Speed Test:** Test the connection speed between devices within your local network to diagnose bottlenecks.
-*   **💬 Local Chat:** Send text messages to other devices running Wifi Vault on the same LAN without needing internet routing.
-*   **🚨 SOS Emergency Broadcast:** Instantly broadcast a high-priority emergency alert to all instances of Wifi Vault on your network. Triggers visual and haptic feedback on recipient devices.
+*   **💬 Local Chat:** Send text messages to other devices running Nexora on the same LAN without needing internet routing.
+*   **🚨 SOS Emergency Broadcast:** Instantly broadcast a high-priority emergency alert to all instances of Nexora on your network. Triggers visual and haptic feedback on recipient devices.
 *   **📊 Network Statistics:** Monitor your real-time network usage and data transfer statistics.
 
 ## 📸 Screenshots
@@ -42,7 +42,7 @@ You need to have the Flutter SDK installed. If you haven't installed it yet, fol
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/Goddbott/wifi_vault.git
+git clone https://github.com/JASH-SHAH2606/wifi_vault.git
 cd wifi_vault
 ```
 
@@ -71,10 +71,6 @@ To build a production-ready application, use the following commands based on you
 flutter build apk --release
 ```
 
-**Android (App Bundle - for Play Store):**
-```bash
-flutter build appbundle --release
-```
 
 **iOS:**
 ```bash
@@ -94,7 +90,7 @@ flutter build windows --release
 
 ## 🏗️ Architecture
 
-Wifi Vault uses a decentralized, peer-to-peer (P2P) architecture designed for Local Area Networks. 
+Nexora uses a decentralized, peer-to-peer (P2P) architecture designed for Local Area Networks. 
 - **Discovery:** Uses UDP broadcast/multicast to announce and discover other running instances.
 - **Communication:** Establishes direct TCP connections for reliable data transfer (file sharing, chat, etc.).
 - **Web Server:** Runs an embedded HTTP server to expose selected files to network devices via a web interface.
@@ -116,11 +112,3 @@ Wifi Vault uses a decentralized, peer-to-peer (P2P) architecture designed for Lo
 *   **Aditya Ajay** - [Role/Contribution]
 *   **Rishu Kumar** - [Role/Contribution]
 *   **Ansh Patel** - [Role/Contribution]
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome!
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
